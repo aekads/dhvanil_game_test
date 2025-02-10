@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        body, canvas { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: black; }
+        canvas { background: green; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        canvas.width = 400;
+        canvas.height = 400;
+
+        let snake = [{ x: 200, y: 200 }];
+        let direction = "RIGHT";
+        let food = { x: 100, y: 100 };
+        let size = 20;
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw snake
+            ctx.fillStyle = "white";
+            snake.forEach(part => ctx.fillRect(part.x, part.y, size, size));
+
+            // Draw food
+            ctx.fillStyle = "red";
+            ctx.fillRect(food.x, food.y, size, size);
+
+            // Move snake
+            let head = { ...snake[0] };
+            if (direction === "UP") head.y -= size;
+            if (direction === "DOWN") head.y += size;
+            if (direction === "LEFT") head.x -= size;
+            if (direction === "RIGHT") head.x += size;
+
+            snake.unshift(head);
+
+            // Check food collision
+            if (head.x === food.x && head.y === food.y) {
+                food.x = Math.floor(Math.random() * (canvas.width / size)) * size;
+                food.y = Math.floor(Math.random() * (canvas.height / size)) * size;
+            } else {
+                snake.pop();
+            }
+
+            // Game over conditions
+            if (head.x < 0 || head.x >= canvas.width || head.y < 0 || head.y >= canvas.height || 
+                snake.slice(1).some(part => part.x === head.x && part.y === head.y)) resetGame();
+
+            requestAnimationFrame(draw);
+        }
+
+        function resetGame() {
+            snake = [{ x: 200, y: 200 }];
+            direction = "RIGHT";
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowUp") direction = "UP";
+            if (e.key === "ArrowDown") direction = "DOWN";
+            if (e.key === "ArrowLeft") direction = "LEFT";
+            if (e.key === "ArrowRight") direction = "RIGHT";
+        });
+
+        draw();
+    </script>
+</body>
+</html>

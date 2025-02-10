@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fruit Cutting Game</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; background: linear-gradient(45deg, #2ecc71, #27ae60); overflow: hidden; user-select: none; }
+        #gameContainer { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+        .fruit { position: absolute; font-size: 50px; transition: transform 0.3s ease-out; }
+        #score { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 24px; color: white; font-weight: bold; }
+        #timer { position: absolute; top: 10px; right: 20px; font-size: 24px; color: white; font-weight: bold; }
+        #winMessage { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; color: yellow; font-weight: bold; display: none; }
+        .slice-trail { position: absolute; width: 20px; height: 20px; background: rgba(255, 255, 255, 0.7); border-radius: 50%; pointer-events: none; animation: fadeOut 0.3s linear forwards; }
+        .juice { position: absolute; width: 40px; height: 40px; background: red; border-radius: 50%; opacity: 0.7; pointer-events: none; animation: splash 0.5s linear forwards; }
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(2); }
+        }
+        @keyframes splash {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(2.5); }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="score">Score: 0</div>
+        <div id="timer">Time: 30s</div>
+        <div id="winMessage">🎉 You Win! 🎉</div>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById("gameContainer");
+        const scoreDisplay = document.getElementById("score");
+        const timerDisplay = document.getElementById("timer");
+        const winMessage = document.getElementById("winMessage");
+
+        let score = 0;
+        let timeLeft = 30;
+        let gameInterval, timerInterval;
+
+        let fruits = ["🍎", "🍌", "🍊", "🍓", "🍍", "🍇", "🍉", "🥭"];
+
+        function createFruit() {
+            const fruit = document.createElement("div");
+            fruit.classList.add("fruit");
+            fruit.innerText = fruits[Math.floor(Math.random() * fruits.length)];
+            
+            let x = Math.random() * (window.innerWidth - 70);
+            fruit.style.left = `${x}px`;
+            fruit.style.top = `0px`;
+            gameContainer.appendChild(fruit);
+
+            let fall = setInterval(() => {
+                fruit.style.top = (parseInt(fruit.style.top) + 5) + "px";
+                if (parseInt(fruit.style.top) > window.innerHeight) {
+                    clearInterval(fall);
+                    gameContainer.removeChild(fruit);
+                }
+            }, 30);
+
+            fruit.addEventListener("mousemove", (e) => sliceFruit(fruit, fall, e));
+            fruit.addEventListener("touchmove", (e) => sliceFruit(fruit, fall, e.touches[0]), { passive: true });
+        }
+
+        function sliceFruit(fruit, fall, event) {
+            let { clientX, clientY } = event;
+            let rect = fruit.getBoundingClientRect();
+
+            if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+                clearInterval(fall);
+
+                // Juice Splatter Effect
+                let juice = document.createElement("div");
+                juice.classList.add("juice");
+                juice.style.left = `${clientX - 20}px`;
+                juice.style.top = `${clientY - 20}px`;
+                gameContainer.appendChild(juice);
+                setTimeout(() => juice.remove(), 500);
+
+                // Create Two Halves
+                let leftHalf = fruit.cloneNode(true);
+                let rightHalf = fruit.cloneNode(true);
+
+                leftHalf.style.clipPath = "polygon(0% 0%, 50% 0%, 50% 100%, 0% 100%)";
+                rightHalf.style.clipPath = "polygon(50% 0%, 100% 0%, 100% 100%, 50% 100%)";
+
+                leftHalf.style.left = fruit.style.left;
+                leftHalf.style.top = fruit.style.top;
+                rightHalf.style.left = fruit.style.left;
+                rightHalf.style.top = fruit.style.top;
+
+                gameContainer.appendChild(leftHalf);
+                gameContainer.appendChild(rightHalf);
+
+                setTimeout(() => {
+                    leftHalf.style.transform = "translateX(-50px) rotate(-45deg)";
+                    leftHalf.style.opacity = "0";
+                    rightHalf.style.transform = "translateX(50px) rotate(45deg)";
+                    rightHalf.style.opacity = "0";
+                }, 10);
+
+                // Randomized Disappearance Effect
+                let disappearTime = Math.random() > 0.5 ? 400 : 800;
+                setTimeout(() => {
+                    leftHalf.remove();
+                    rightHalf.remove();
+                }, disappearTime);
+
+                fruit.remove();
+                score++;
+                scoreDisplay.textContent = `Score: ${score}`;
+
+                if (score >= 10) {
+                    winGame();
+                }
+            }
+        }
+
+        function startGame() {
+            score = 0;
+            timeLeft = 30;
+            scoreDisplay.textContent = `Score: ${score}`;
+            timerDisplay.textContent = `Time: ${timeLeft}s`;
+            winMessage.style.display = "none";
+
+            gameInterval = setInterval(createFruit, 800);
+            timerInterval = setInterval(updateTimer, 1000);
+        }
+
+        function updateTimer() {
+            timeLeft--;
+            timerDisplay.textContent = `Time: ${timeLeft}s`;
+            if (timeLeft <= 0) {
+                endGame();
+            }
+        }
+
+        function endGame() {
+            clearInterval(gameInterval);
+            clearInterval(timerInterval);
+            alert(`Time's up! Your score: ${score}`);
+            restartGame();
+        }
+
+        function winGame() {
+            clearInterval(gameInterval);
+            clearInterval(timerInterval);
+            winMessage.style.display = "block";
+            setTimeout(restartGame, 3000);
+        }
+
+        function restartGame() {
+            document.querySelectorAll(".fruit").forEach(fruit => fruit.remove());
+            startGame();
+        }
+
+        document.addEventListener("mousemove", (e) => createTrail(e.clientX, e.clientY));
+        document.addEventListener("touchmove", (e) => createTrail(e.touches[0].clientX, e.touches[0].clientY));
+
+        function createTrail(x, y) {
+            const trail = document.createElement("div");
+            trail.classList.add("slice-trail");
+            trail.style.left = `${x}px`;
+            trail.style.top = `${y}px`;
+            gameContainer.appendChild(trail);
+            setTimeout(() => trail.remove(), 300);
+        }
+
+        startGame();
+    </script>
+</body>
+</html>

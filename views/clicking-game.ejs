@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clicking Game</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; background: #222; color: white; font-family: Arial, sans-serif; overflow: hidden; }
+        #gameContainer { position: relative; width: 100vw; height: 100vh; }
+        .target { position: absolute; width: 60px; height: 60px; background: red; border-radius: 50%; cursor: pointer; }
+        #score { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 24px; }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="score">Score: 0</div>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById("gameContainer");
+        const scoreDisplay = document.getElementById("score");
+
+        let score = 0;
+
+        function createTarget() {
+            const target = document.createElement("div");
+            target.classList.add("target");
+
+            let x = Math.random() * (window.innerWidth - 60);
+            let y = Math.random() * (window.innerHeight - 60);
+
+            target.style.left = `${x}px`;
+            target.style.top = `${y}px`;
+
+            target.addEventListener("click", hitTarget);
+            target.addEventListener("touchstart", hitTarget, { passive: true });
+
+            gameContainer.appendChild(target);
+
+            setTimeout(() => {
+                if (document.body.contains(target)) {
+                    gameContainer.removeChild(target);
+                }
+            }, 1000); // Remove target if not clicked in time
+        }
+
+        function hitTarget(event) {
+            event.stopPropagation();
+            score++;
+            scoreDisplay.textContent = `Score: ${score}`;
+            this.remove();
+            createTarget();
+        }
+
+        setInterval(createTarget, 1000);
+    </script>
+</body>
+</html>

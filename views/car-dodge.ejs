@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Dodge</title>
+    <style>
+        body, canvas { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: grey; }
+        canvas { background: black; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        canvas.width = 300;
+        canvas.height = window.innerHeight;
+
+        let car = { x: 130, y: canvas.height - 80, width: 40, height: 70 };
+        let obstacles = [];
+        let speed = 5;
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw car
+            ctx.fillStyle = "red";
+            ctx.fillRect(car.x, car.y, car.width, car.height);
+
+            // Draw obstacles
+            obstacles.forEach(obstacle => {
+                ctx.fillStyle = "blue";
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+
+            // Move obstacles
+            obstacles.forEach(obstacle => obstacle.y += speed);
+
+            // Add new obstacles
+            if (obstacles.length === 0 || obstacles[obstacles.length - 1].y > 200) {
+                let xPos = Math.random() * (canvas.width - 50);
+                obstacles.push({ x: xPos, y: -50, width: 50, height: 50 });
+            }
+
+            // Remove old obstacles
+            obstacles = obstacles.filter(obstacle => obstacle.y < canvas.height);
+
+            // Collision detection
+            obstacles.forEach(obstacle => {
+                if (
+                    car.x < obstacle.x + obstacle.width &&
+                    car.x + car.width > obstacle.x &&
+                    car.y < obstacle.y + obstacle.height &&
+                    car.y + car.height > obstacle.y
+                ) resetGame();
+            });
+
+            requestAnimationFrame(draw);
+        }
+
+        function resetGame() {
+            car.x = 130;
+            obstacles = [];
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "ArrowLeft" && car.x > 0) car.x -= 30;
+            if (e.key === "ArrowRight" && car.x + car.width < canvas.width) car.x += 30;
+        });
+
+        draw();
+    </script>
+</body>
+</html>

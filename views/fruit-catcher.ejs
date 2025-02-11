@@ -3,17 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fruit Cutting Game</title>
+    <title>Fruit Ninja</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { display: flex; justify-content: center; align-items: center; height: 100vh; background: linear-gradient(45deg, #2ecc71, #27ae60); overflow: hidden; user-select: none; }
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; background: linear-gradient(45deg, #1a1a1a, #2a2a2a); overflow: hidden; user-select: none; }
         #gameContainer { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
-        .fruit { position: absolute; font-size: 50px; transition: transform 0.3s ease-out; }
-        #score { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 24px; color: white; font-weight: bold; }
-        #timer { position: absolute; top: 10px; right: 20px; font-size: 24px; color: white; font-weight: bold; }
-        #winMessage { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 40px; color: yellow; font-weight: bold; display: none; }
-        .slice-trail { position: absolute; width: 20px; height: 20px; background: rgba(255, 255, 255, 0.7); border-radius: 50%; pointer-events: none; animation: fadeOut 0.3s linear forwards; }
-        .juice { position: absolute; width: 40px; height: 40px; background: red; border-radius: 50%; opacity: 0.7; pointer-events: none; animation: splash 0.5s linear forwards; }
+        .fruit { position: absolute; font-size: 50px; transition: transform 0.4s ease-out; animation: float 3s ease-in-out infinite; }
+        #score { position: absolute; top: 20px; left: 20px; font-size: 32px; color: white; font-family: 'Arial', sans-serif; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        #timer { display: none; } /* Hide the timer */
+        #winMessage { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 48px; color: #ffd700; font-weight: bold; display: none; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+        .slice-trail { position: absolute; width: 20px; height: 20px; background: rgba(255, 255, 255, 0.9); border-radius: 50%; pointer-events: none; animation: fadeOut 0.3s linear forwards; }
+        .juice { position: absolute; width: 40px; height: 40px; opacity: 0.7; pointer-events: none; animation: splash 0.5s linear forwards; }
+        .particle { position: absolute; width: 8px; height: 8px; background: white; border-radius: 50%; animation: particleFly 1s ease-out forwards; }
+        .cut-message { position: absolute; font-size: 20px; color: white; font-family: 'Arial', sans-serif; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); animation: fadeOut 1s ease-out forwards; }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
         @keyframes fadeOut {
             0% { opacity: 1; transform: scale(1); }
             100% { opacity: 0; transform: scale(2); }
@@ -22,132 +29,175 @@
             0% { opacity: 1; transform: scale(1); }
             100% { opacity: 0; transform: scale(2.5); }
         }
+        @keyframes particleFly {
+            0% { transform: translate(0, 0); opacity: 1; }
+            100% { transform: translate(var(--tx), var(--ty)); opacity: 0; }
+        }
     </style>
 </head>
 <body>
     <div id="gameContainer">
-        <div id="score">Score: 0</div>
-        <div id="timer">Time: 30s</div>
-        <div id="winMessage">🎉 You Win! 🎉</div>
+        <div id="score">🍎 0</div>
+        <div id="winMessage">🎉 YOU WIN! 🎉</div>
+        <audio id="sliceSound" src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU..."></audio>
     </div>
 
     <script>
         const gameContainer = document.getElementById("gameContainer");
         const scoreDisplay = document.getElementById("score");
-        const timerDisplay = document.getElementById("timer");
         const winMessage = document.getElementById("winMessage");
+        const sliceSound = document.getElementById("sliceSound");
 
         let score = 0;
-        let timeLeft = 30;
-        let gameInterval, timerInterval;
+        let gameInterval;
 
-        let fruits = ["🍎", "🍌", "🍊", "🍓", "🍍", "🍇", "🍉", "🥭"];
+        const fruits = ["🍎", "🍌", "🍊", "🍓", "🍍", "🍇", "🍉", "🥭"];
+        const juiceColors = {
+            "🍎": "#ff0000", "🍌": "#ffd700", "🍊": "#ffa500",
+            "🍓": "#ff1493", "🍍": "#ffd700", "🍇": "#9370db",
+            "🍉": "#ff6347", "🥭": "#ffa500"
+        };
 
         function createFruit() {
             const fruit = document.createElement("div");
             fruit.classList.add("fruit");
-            fruit.innerText = fruits[Math.floor(Math.random() * fruits.length)];
+            const fruitType = fruits[Math.floor(Math.random() * fruits.length)];
+            fruit.innerText = fruitType;
             
-            let x = Math.random() * (window.innerWidth - 70);
-            fruit.style.left = `${x}px`;
-            fruit.style.top = `0px`;
+            const side = Math.random() > 0.5 ? 'left' : 'right';
+            const startX = side === 'left' ? -100 : window.innerWidth + 100;
+            const endX = side === 'left' ? window.innerWidth + 100 : -100;
+            const startY = Math.random() * (window.innerHeight - 200) + 100;
+            
+            fruit.style.left = `${startX}px`;
+            fruit.style.top = `${startY}px`;
             gameContainer.appendChild(fruit);
 
-            let fall = setInterval(() => {
-                fruit.style.top = (parseInt(fruit.style.top) + 5) + "px";
-                if (parseInt(fruit.style.top) > window.innerHeight) {
-                    clearInterval(fall);
-                    gameContainer.removeChild(fruit);
-                }
-            }, 30);
+            const angle = Math.random() * 30 - 15;
+            fruit.animate([
+                { transform: `translate(${startX}px, ${startY}px) rotate(0deg)` },
+                { transform: `translate(${endX}px, ${startY + 500}px) rotate(${angle * 4}deg)` }
+            ], {
+                duration: 4000,
+                easing: 'linear'
+            });
 
-            fruit.addEventListener("mousemove", (e) => sliceFruit(fruit, fall, e));
-            fruit.addEventListener("touchmove", (e) => sliceFruit(fruit, fall, e.touches[0]), { passive: true });
+            setTimeout(() => fruit.remove(), 3900);
+
+            fruit.addEventListener("mousemove", (e) => sliceFruit(fruit, fruitType, e));
+            fruit.addEventListener("touchmove", (e) => sliceFruit(fruit, fruitType, e.touches[0]), { passive: true });
         }
 
-        function sliceFruit(fruit, fall, event) {
+        function sliceFruit(fruit, fruitType, event) {
             let { clientX, clientY } = event;
             let rect = fruit.getBoundingClientRect();
 
             if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-                clearInterval(fall);
+                // Play slice sound
+                sliceSound.currentTime = 0;
+                sliceSound.play();
 
-                // Juice Splatter Effect
-                let juice = document.createElement("div");
-                juice.classList.add("juice");
-                juice.style.left = `${clientX - 20}px`;
-                juice.style.top = `${clientY - 20}px`;
-                gameContainer.appendChild(juice);
-                setTimeout(() => juice.remove(), 500);
+                // Show cut message
+                showCutMessage(clientX, clientY);
 
-                // Create Two Halves
-                let leftHalf = fruit.cloneNode(true);
-                let rightHalf = fruit.cloneNode(true);
+                // Juice effect
+                createJuiceEffect(clientX, clientY, juiceColors[fruitType]);
+                createParticles(clientX, clientY);
 
-                leftHalf.style.clipPath = "polygon(0% 0%, 50% 0%, 50% 100%, 0% 100%)";
-                rightHalf.style.clipPath = "polygon(50% 0%, 100% 0%, 100% 100%, 50% 100%)";
+                // Create halves
+                const halves = createHalves(fruit, clientX, clientY);
+                gameContainer.appendChild(halves.left);
+                gameContainer.appendChild(halves.right);
 
-                leftHalf.style.left = fruit.style.left;
-                leftHalf.style.top = fruit.style.top;
-                rightHalf.style.left = fruit.style.left;
-                rightHalf.style.top = fruit.style.top;
-
-                gameContainer.appendChild(leftHalf);
-                gameContainer.appendChild(rightHalf);
-
+                // Remove elements after animation
                 setTimeout(() => {
-                    leftHalf.style.transform = "translateX(-50px) rotate(-45deg)";
-                    leftHalf.style.opacity = "0";
-                    rightHalf.style.transform = "translateX(50px) rotate(45deg)";
-                    rightHalf.style.opacity = "0";
-                }, 10);
-
-                // Randomized Disappearance Effect
-                let disappearTime = Math.random() > 0.5 ? 400 : 800;
-                setTimeout(() => {
-                    leftHalf.remove();
-                    rightHalf.remove();
-                }, disappearTime);
+                    halves.left.remove();
+                    halves.right.remove();
+                }, 800);
 
                 fruit.remove();
                 score++;
-                scoreDisplay.textContent = `Score: ${score}`;
+                scoreDisplay.textContent = `🍎 ${score}`;
 
-                if (score >= 10) {
-                    winGame();
-                }
+                if (score >= 10) winGame();
             }
+        }
+
+        function showCutMessage(x, y) {
+            const cutMessage = document.createElement("div");
+            cutMessage.classList.add("cut-message");
+            cutMessage.innerText = "Cut!";
+            cutMessage.style.left = `${x}px`;
+            cutMessage.style.top = `${y}px`;
+            gameContainer.appendChild(cutMessage);
+            setTimeout(() => cutMessage.remove(), 1000);
+        }
+
+        function createJuiceEffect(x, y, color) {
+            const juice = document.createElement("div");
+            juice.classList.add("juice");
+            juice.style.backgroundColor = color;
+            juice.style.left = `${x - 20}px`;
+            juice.style.top = `${y - 20}px`;
+            gameContainer.appendChild(juice);
+            setTimeout(() => juice.remove(), 500);
+        }
+
+        function createParticles(x, y) {
+            for (let i = 0; i < 10; i++) {
+                const particle = document.createElement("div");
+                particle.classList.add("particle");
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.style.setProperty('--tx', `${Math.random() * 100 - 50}px`);
+                particle.style.setProperty('--ty', `${Math.random() * 100 - 50}px`);
+                gameContainer.appendChild(particle);
+                setTimeout(() => particle.remove(), 1000);
+            }
+        }
+
+        function createHalves(fruit, x, y) {
+            const leftHalf = fruit.cloneNode(true);
+            const rightHalf = fruit.cloneNode(true);
+            
+            leftHalf.style.position = 'absolute';
+            rightHalf.style.position = 'absolute';
+            
+            leftHalf.style.clipPath = "polygon(0 0, 50% 0, 50% 100%, 0 100%)";
+            rightHalf.style.clipPath = "polygon(50% 0, 100% 0, 100% 100%, 50% 100%)";
+            
+            leftHalf.style.transform = `translate(${x}px, ${y}px) rotate(-30deg)`;
+            rightHalf.style.transform = `translate(${x}px, ${y}px) rotate(30deg)`;
+            
+            leftHalf.animate([
+                { transform: `translate(${x}px, ${y}px) rotate(-30deg)`, opacity: 1 },
+                { transform: `translate(${x - 100}px, ${y + 100}px) rotate(-180deg)`, opacity: 0 }
+            ], { duration: 800, easing: 'ease-out' });
+
+            rightHalf.animate([
+                { transform: `translate(${x}px, ${y}px) rotate(30deg)`, opacity: 1 },
+                { transform: `translate(${x + 100}px, ${y + 100}px) rotate(180deg)`, opacity: 0 }
+            ], { duration: 800, easing: 'ease-out' });
+
+            return { left: leftHalf, right: rightHalf };
         }
 
         function startGame() {
             score = 0;
-            timeLeft = 30;
-            scoreDisplay.textContent = `Score: ${score}`;
-            timerDisplay.textContent = `Time: ${timeLeft}s`;
+            scoreDisplay.textContent = `🍎 ${score}`;
             winMessage.style.display = "none";
 
-            gameInterval = setInterval(createFruit, 800);
-            timerInterval = setInterval(updateTimer, 1000);
-        }
-
-        function updateTimer() {
-            timeLeft--;
-            timerDisplay.textContent = `Time: ${timeLeft}s`;
-            if (timeLeft <= 0) {
-                endGame();
-            }
+            gameInterval = setInterval(createFruit, 500); // Increase fruit spawn rate
         }
 
         function endGame() {
             clearInterval(gameInterval);
-            clearInterval(timerInterval);
             alert(`Time's up! Your score: ${score}`);
             restartGame();
         }
 
         function winGame() {
             clearInterval(gameInterval);
-            clearInterval(timerInterval);
             winMessage.style.display = "block";
             setTimeout(restartGame, 3000);
         }
